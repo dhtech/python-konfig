@@ -8,6 +8,14 @@ reading the credentials.
 The library aims to solve the problem that some applications have that they only need
 a relatively tiny amount of storage that is rarely updated.
 
+## Install
+
+```
+pip install python-konfig
+# or
+pip3 install python-konfig
+```
+
 ## Usage
 
 Give the service account access to read a config map:
