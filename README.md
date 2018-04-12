@@ -29,8 +29,14 @@ import konfig
 configmap = konfig.configmap('test-config', namespace='default')
 
 myconfig = configmap.read()
-myconfig['test1'] = int(myconfig['test1'])
+print(myconfig)
+myconfig['test1'] = int(myconfig['test1']) + 1
 configmap.update(myconfig)
 ```
 
 Enjoy!
+
+## Known Issues
+
+In Python 2.7 requests is having some issues with IP SANs,
+see https://bugs.python.org/issue23239. Use DNS hostname instead.

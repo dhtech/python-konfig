@@ -13,22 +13,60 @@ Example: Read / write the config map:
     myconfig = configmap.read()
 """
 
-import json
 import os
 import requests
 
+SECRETS_PREFIX = '/run/secrets/kubernetes.io/serviceaccount/'
+
 
 class ConfigMap(object):
-    def __init__(self, name, namespace, server):
+    def __init__(self, name, namespace, server, token, capath):
         self.name = name
         self.namespace = namespace
         self.server = server
+        self.token = token
+        self.capath = capath
+
+    def url(self):
+        return '{server}/api/v1/namespaces/{ns}/configmaps/{name}'.format(
+                name=self.name, ns=self.namespace, server=self.server)
+
+    def _headers(self):
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + self.token,
+        }
 
     def read(self):
-        pass
+        """Reads config map from Kubernetes.
 
-    def update(self):
-        pass
+        Returns:
+          dict of the data in the config map.
+        """
+        response = requests.get(
+                self.url(), headers=self._headers(), verify=self.capath)
+        response.raise_for_status()
+        return response.json().get('data', None)
+
+    def update(self, data):
+        """Updates config map on Kubernetes.
+
+        Args:
+          data: dict of the data to write to the config map.
+        """
+        obj = {
+            "kind": "ConfigMap",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": self.name,
+                "namespace": self.namespace,
+            },
+            "data": {str(k): str(v) for k, v in data.items()},
+        }
+        response = requests.put(
+                self.url(), headers=self._headers(), verify=self.capath,
+                json=obj)
+        response.raise_for_status()
 
 
 def configmap(name, namespace=None, server=None):
@@ -42,7 +80,13 @@ def configmap(name, namespace=None, server=None):
         KONFIG_SERVER will be used if set or 'https://kubernetes.default'.
 
     Returns:
-      ConfigMap instance
+      ConfigMap instance.
     """
-
-    return ConfigMap(name, namespace, server)
+    namespace = namespace or (
+            os.environ.get('KONFIG_NAMESPACE', 'default'))
+    server = server or (
+            os.environ.get('KONFIG_SERVER', 'https://kubernetes.default'))
+    with open(os.path.join(SECRETS_PREFIX, 'token'), 'r') as f:
+        token = f.read().strip()
+    capath = os.path.join(SECRETS_PREFIX, 'ca.crt')
+    return ConfigMap(name, namespace, server, token, capath)
